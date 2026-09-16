@@ -1,14 +1,16 @@
 # pci-msi-starvation-issue
 # System setup
-# Broadwell 6 core multi-root complex SOC
-# PCIE SWITCH
-# Two Onboard FPGA
-# NVME
-# Ethernet
-# 8 PCIE Switch Boards connected to Downports of Mother Board PCIE Switch
-# Each PCIE Switch Board has 1 FPGA
-# Each PCI Switch board has 4 instances of PCIE Device VendorID 0x1234 and DeviceID 0xABCD
+```text
+ Broadwell 6 core multi-root complex SOC
+ PCIE SWITCH
+ Two Onboard FPGA
+ NVME
+ Ethernet
+ 8 PCIE Switch Boards connected to Downports of Mother Board PCIE Switch
+ Each PCIE Switch Board has 1 FPGA
+ Each PCI Switch board has 4 instances of PCIE Device VendorID 0x1234 and DeviceID 0xABCD
 #
+```
 # 1. PCIe Physical Topology Block Diagram
 ```text
                  ┌────────────────────────────────────────────────────────┐
@@ -29,7 +31,7 @@
 └────────────┘           └────────────┘            └──────────────┘         └──────────────┘
                                                           │
                                             ┌─────────────┴─────────────┐
-                                            │     PLX PEX8725 Switch    │
+                                            │     PCIE        Switch    │
                                             └─────────────┬─────────────┘
                                                           │
           ┌───────────────┬───────────────┬───────────────┼───────────────┬───────────────┬───────────────┬───────────────┐
