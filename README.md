@@ -97,3 +97,20 @@
   # which represents the 24th instance overall of device 0xABCD). # When this block requests its MSI slice,
  #  pci_alloc_irq_vectors triggers -ENOSPC because Core 0 has run out of physical slots.
 ```
+
+
+# SOLUTION
+# a two-pronged solution: optimize the hardware request footprint (reducing the FPGAs from 16 vectors to 1 vector)
+# and configure the host kernel/architecture to balance interrupts across all 6 Broadwell cores using Interrupt Remapping.
+
+Fix 1: Optimizing the Code to Request 1 MSI Vector per FPGABy changing the driver allocation loop or 
+updating the FPGA endpoint configurations to only request 1 vector instead of 16,
+you instantly wipe out the vector footprint.
+# The Math After Optimization:
+# 2 On-board FPGAs = 2 vectors (Previously 32)
+# 8 Switchboard FPGAs = 8 vectors (Previously 128)
+# 32 Endpoint Devices = 32 vectors 
+# Onboard NIC + NVMe = 5 vectors 
+# At 47 vectors total, the entire system easily fits well under Core 0's native ~200 free vector limit. 
+# Furthermore, because they are requesting single vectors, you completely eliminate the multi-MSI contiguous allocation rule, eradicating x86 IDT table fragmentation.
+
