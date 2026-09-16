@@ -114,3 +114,63 @@ you instantly wipe out the vector footprint.
 # At 47 vectors total, the entire system easily fits well under Core 0's native ~200 free vector limit. 
 # Furthermore, because they are requesting single vectors, you completely eliminate the multi-MSI contiguous allocation rule, eradicating x86 IDT table fragmentation.
 
+
+# 🛑 1. BEFORE (Starvation and Saturated Core 0)The Problem: 
+# Every single FPGA requests 16 vectors, forcing consecutive allocations that jam the x86 IDT table.
+# The Result: All interrupts are statically pinned to CPU0. When the 24th instance tries to initialize, it hits vector exhaustion (-ENOSPC), failing to ever appear in /proc/interrupts.
+```text
+           CPU0       CPU1       CPU2       CPU3       CPU4       CPU5
+  0:         42          0          0          0          0          0  IR-IO-APIC    2-edge      timer
+  1:         10          0          0          0          0          0  IR-IO-APIC    1-edge      i8042
+  8:          1          0          0          0          0          0  IR-IO-APIC    8-edge      rtc0
+ 40:     102450          0          0          0          0          0   PCI-MSI      0000:01:00.0  eth0
+ 41:      50124          0          0          0          0          0   PCI-MSI      0000:01:01.0  nvme0q0
+ 42:       4810          0          0          0          0          0   PCI-MSI      0000:01:01.0  nvme0q1
+...
+ 45:          0          0          0          0          0          0   PCI-MSI      0000:02:00.0  fpga_base1_0
+... [Vectors 46 to 60 are eaten up sequentially by the rest of fpga_base1's 16 vectors] ...
+ 61:          0          0          0          0          0          0   PCI-MSI      0000:02:01.0  fpga_base2_0
+... [Vectors 62 to 76 are eaten up sequentially by the rest of fpga_base2's 16 vectors] ...
+ 77:       1200          0          0          0          0          0   PCI-MSI      0000:06:00.0  fpga_swbd1_0
+... [Vectors 78 to 92 are eaten up sequentially by fpga_swbd1's 16 vectors] ...
+ 93:        844          0          0          0          0          0   PCI-MSI      0000:06:00.1  dev1
+... [Switchboards 2, 3, 4, and 5 keep demanding 16 vectors + 4 dev vectors each, cascading rapidly] ...
+210:          5          0          0          0          0          0   PCI-MSI      0000:0a:00.4  dev20
+211:          0          0          0          0          0          0   PCI-MSI      0000:0b:00.0  fpga_swbd6_0
+... [Vectors 212 to 226 are eaten up sequentially by fpga_swbd6's 16 vectors] ...
+227:        102          0          0          0          0          0   PCI-MSI      0000:0b:00.1  dev21
+228:         94          0          0          0          0          0   PCI-MSI      0000:0b:00.2  dev22
+229:         12          0          0          0          0          0   PCI-MSI      0000:0b:00.3  dev23
+ERR:          0
+
+```
+# 2. AFTER (Optimized Vectors + Interrupt Remapping Active)
+# The Fix: Every FPGA footprint is optimized down to 1 vector instead of 16.
+# The Result: The kernel loads intel_iommu=on intremap=on and maps the interrupts using the IR-PCI-MSI framework.
+# It leverages PCI_IRQ_AFFINITY and irqbalance to distribute vectors evenly across all 6 cores,
+# allowing dev24 (and all subsequent cards) to register flawlessly.
+
+```text
+           CPU0       CPU1       CPU2       CPU3       CPU4       CPU5
+  0:         42          0          0          0          0          0  IR-IO-APIC    2-edge      timer
+  1:         10          0          0          0          0          0  IR-IO-APIC    1-edge      i8042
+ 40:     102450          0          0          0          0          0  IR-PCI-MSI   10240-edge   eth0
+ 41:          0      50124          0          0          0          0  IR-PCI-MSI   20480-edge   nvme0q0
+ 42:          0          0       4810          0          0          0  IR-PCI-MSI   20481-edge   nvme0q1
+ 43:          0          0          0       2100          0          0  IR-PCI-MSI   32768-edge   fpga_base1
+ 44:          0          0          0          0       1420          0  IR-PCI-MSI   34816-edge   fpga_base2
+ 45:          0          0          0          0          0       3110  IR-PCI-MSI   40960-edge   fpga_swbd1
+ 46:       1500          0          0          0          0          0  IR-PCI-MSI   40961-edge   dev1
+ 47:          0       1844          0          0          0          0  IR-PCI-MSI   40962-edge   dev2
+ 48:          0          0       1120          0          0          0  IR-PCI-MSI   40963-edge   dev3
+ 49:          0          0          0       1992          0          0  IR-PCI-MSI   40964-edge   dev4
+...
+ 74:          0          0          0          0          0        482  IR-PCI-MSI   49152-edge   fpga_swbd6
+ 75:        312          0          0          0          0          0  IR-PCI-MSI   49153-edge   dev21
+ 76:          0        288          0          0          0          0  IR-PCI-MSI   49154-edge   dev22
+ 77:          0          0        194          0          0          0  IR-PCI-MSI   49155-edge   dev23
+ 78:          0          0          0        512          0          0  IR-PCI-MSI   49156-edge   dev24  <-- SUCCESS!
+ 79:          0          0          0          0        411          0  IR-PCI-MSI   49157-edge   dev25
+ERR:          0
+
+```
