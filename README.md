@@ -1,11 +1,14 @@
 # pci-msi-starvation-issue
-
-# The Core Problem:
-   # The x86 Vector LimitIn the x86/x64 architecture, every CPU core has a Local APIC (Advanced Programmable Interrupt Controller)
-   # An IDT (Interrupt Descriptor Table) on x86 has 256 hardware slots (vectors) per CPU core.
-   # The Linux kernel reserves the first 32 vectors for CPU exceptions (like page faults) and another chunk for system interrupts (like timers or IPIs).
-   # This leaves only about 200 remaining allocatable vectors per CPU core for all physical hardware combined (GPUs, NVMe arrays, NICs
-
+# System setup
+# Broadwell 6 core multi-root complex SOC
+# PCIE SWITCH
+# Two Onboard FPGA
+# NVME
+# Ethernet
+# 8 PCIE Switch Boards connected to Downports of Mother Board PCIE Switch
+# Each PCIE Switch Board has 1 FPGA
+# Each PCI Switch board has 4 instances of PCIE Device VendorID 0x1234 and DeviceID 0xABCD
+#
 # 1. PCIe Physical Topology Block Diagram
 ```text
                  ┌────────────────────────────────────────────────────────┐
