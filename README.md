@@ -81,5 +81,15 @@
 ```
 
 ```text
-3. The Failure Point ExplanationsSystem Baselines: Before the switchboards even kick off, Core 0's Local APIC has already consumed 1 vector for the onboard NIC, 4 vectors for the NVMe storage, and 32 vectors combined for the two primary motherboard FPGAs (1+4+32 = 37 vectors).Switchboard Saturation: As the system loops sequentially through the PEX8725 downstream bridges, each fully populated card consumes exactly 20 vectors (16 for the layout FPGA + 4 for the target devices).The Collision:Ports 06 through 0a (Switchboards 1 to 5) take up exactly 100 vectors (5 × 20), inflating the total allocated pool to 137 vectors.Moving onto bridge port 0b (Switchboard 6), the initialization logic safely registers the 6th sub-FPGA (+16) and instances 21, 22, and 23 (+3).This drives the raw hardware usage profile to 156 hardware vectors. Add the system's reserved core limits (~60 vectors for timers, scheduler, internal tasks), and Core 0's strict 256 hardware slot architecture limit is crossed.The Trigger Device: The failure explicitly occurs at address 0000:0b:00.4 (the 4th endpoint on Switchboard 6, which represents the 24th instance overall of device 0xABCD). When this block requests its MSI slice, pci_alloc_irq_vectors triggers -ENOSPC because Core 0 has run out of physical slots.
+3. The Failure Point ExplanationsSystem Baselines: Before the switchboards even kick off,
+ Core 0's Local APIC has already consumed 1 vector for the onboard NIC,
+ 4 vectors for the NVMe storage,
+ and 32 vectors combined for the two primary motherboard FPGAs (1+4+32 = 37 vectors).
+ Switchboard Saturation: As the system loops sequentially through the PEX8725 downstream bridges,
+  each fully populated card consumes exactly 20 vectors (16 for the layout FPGA + 4 for the target devices).
+  The Collision:Ports 06 through 0a (Switchboards 1 to 5) take up exactly 100 vectors (5 × 20), inflating the total allocated pool to 137 vectors.
+  Moving onto bridge port 0b (Switchboard 6), the initialization logic safely registers the 6th sub-FPGA (+16) and
+  instances 21, 22, and 23 (+3).This drives the raw hardware usage profile to 156 hardware vectors.
+  Add the system's reserved core limits (~60 vectors for timers, scheduler, internal tasks), and Core 0's strict 256 hardware slot architecture limit is crossed.
+  # The Trigger Device: The failure explicitly occurs at address 0000:0b:00.4 (the 4th endpoint on Switchboard 6, which represents the 24th instance overall of device 0xABCD). # When this block requests its MSI slice, pci_alloc_irq_vectors triggers -ENOSPC because Core 0 has run out of physical slots.
 ```
