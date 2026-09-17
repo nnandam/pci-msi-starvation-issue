@@ -1,5 +1,5 @@
-# pci-msi-starvation-issue
-# System setup
+## pci-msi-starvation-issue
+### System setup
 ```text
  Broadwell 6 core multi-root complex SOC
  PCIE SWITCH
@@ -11,7 +11,7 @@
  Each PCI Switch board has 4 instances of PCIE Device VendorID 0x1234 and DeviceID 0xABCD
 #
 ```
-# 1. PCIe Physical Topology Block Diagram
+## 1. PCIe Physical Topology Block Diagram
 ```text
                  ┌────────────────────────────────────────────────────────┐
                  │                  Broadwell 6-Core SoC                  │
@@ -53,8 +53,8 @@
      └────┴────┘     └────┴────┘     └────┴────┘     └────┴────┘     └────┴────┘     └────┴────┘     └────┴────┘     └────┴────┘
  ```
  
-# lspci -tv Bus Enumeration OutputHere is how the kernel sees the device hierarchy on the bus tree during initialization.
-# The numbers in parentheses show the running count of assigned MSI vectors focusing on Core 0's vector exhaustion barrier:
+## lspci -tv Bus Enumeration OutputHere is how the kernel sees the device hierarchy on the bus tree during initialization.
+## The numbers in parentheses show the running count of assigned MSI vectors focusing on Core 0's vector exhaustion barrier:
 ```text
 -[0000:00]-+-00.0  Intel Corporation Broadwell Host Bridge
            +-01.0-[01]--00.0  Intel Corporation Ethernet Connection (1 vector)
@@ -104,10 +104,10 @@
 ```
 
 
-# SOLUTION
-# a two-pronged solution: optimize the hardware request footprint (reducing the FPGAs from 16 vectors to 1 vector)
-# and configure the host kernel/architecture to balance interrupts across all 6 Broadwell cores using Interrupt Remapping.
-
+## SOLUTION
+### a two-pronged solution: optimize the hardware request footprint (reducing the FPGAs from 16 vectors to 1 vector)
+### and configure the host kernel/architecture to balance interrupts across all 6 Broadwell cores using Interrupt Remapping.
+```text
 Fix 1: Optimizing the Code to Request 1 MSI Vector per FPGABy changing the driver allocation loop or 
 updating the FPGA endpoint configurations to only request 1 vector instead of 16,
 you instantly wipe out the vector footprint.
@@ -118,7 +118,7 @@ you instantly wipe out the vector footprint.
 # Onboard NIC + NVMe = 5 vectors 
 # At 47 vectors total, the entire system easily fits well under Core 0's native ~200 free vector limit. 
 # Furthermore, because they are requesting single vectors, you completely eliminate the multi-MSI contiguous allocation rule, eradicating x86 IDT table fragmentation.
-
+```
 
 # 🛑 1. BEFORE (Starvation and Saturated Core 0)The Problem: 
 # Every single FPGA requests 16 vectors, forcing consecutive allocations that jam the x86 IDT table.
